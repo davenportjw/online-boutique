@@ -40,6 +40,8 @@ gcloud services enable alloydb.googleapis.com > /dev/null 2>&1
 gcloud services enable servicenetworking.googleapis.com > /dev/null 2>&1
 gcloud services enable secretmanager.googleapis.com > /dev/null 2>&1
 
+echo "Pause while we wait for the services to ACTUALLY enable..."
+sleep 5
 
 echo "Creating secret with database password."
 
@@ -58,7 +60,7 @@ gcloud compute addresses create ${ALLOYDB_SERVICE_NAME} \
 --prefix-length=16 \
 --description="Online Boutique Private Services" \
 --network=${ALLOYDB_NETWORK} \
- > /dev/null 2>&1
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Unable to create the ip address allocation."
@@ -69,7 +71,7 @@ gcloud services vpc-peerings connect \
 --service=servicenetworking.googleapis.com \
 --ranges=${ALLOYDB_SERVICE_NAME} \
 --network=${ALLOYDB_NETWORK} \
- > /dev/null 2>&1
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Unable to create the VPC-peering connection for private services."
@@ -83,7 +85,7 @@ gcloud alloydb clusters create ${ALLOYDB_CLUSTER_NAME} \
 --password=${PGPASSWORD} \
 --disable-automated-backup \
 --network=${ALLOYDB_NETWORK} \
- > /dev/null 2>&1
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Wasn't able to create the AlloyDB cluster."
@@ -95,7 +97,7 @@ gcloud alloydb instances create ${ALLOYDB_INSTANCE_NAME} \
 --region=${REGION} \
 --cpu-count=4 \
 --instance-type=PRIMARY \
- > /dev/null 2>&1
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Wasn't able to create the AlloyDB primary instance."
@@ -107,7 +109,8 @@ gcloud alloydb instances create ${ALLOYDB_INSTANCE_NAME}-replica \
 --region=${REGION} \
 --cpu-count=8 \
 --instance-type=READ_POOL \
---read-pool-node-count=2
+--read-pool-node-count=2 \
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Wasn't able to create the AlloyhDB read pool."
@@ -124,7 +127,8 @@ fi
 
 echo "Configuring our AlloyDB instance."
 
-psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -c "CREATE DATABASE ${ALLOYDB_DATABASE_NAME}"
+psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -c "CREATE DATABASE ${ALLOYDB_DATABASE_NAME}" \
+> /dev/null 2>&1
 
 # If the first one of these fails, it means we have a problem on the database itself
 if [ $? -ne 0 ]; then
@@ -132,25 +136,32 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE TABLE ${ALLOYDB_TABLE_NAME} (userId text, productId text, quantity int, PRIMARY KEY(userId, productId))"
-psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE INDEX cartItemsByUserId ON ${ALLOYDB_TABLE_NAME}(userId)"
-psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE EXTENSION IF NOT EXISTS google_ml_integration"
+psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE TABLE ${ALLOYDB_TABLE_NAME} (userId text, productId text, quantity int, PRIMARY KEY(userId, productId))" \
+> /dev/null 2>&1
+psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE INDEX cartItemsByUserId ON ${ALLOYDB_TABLE_NAME}(userId)" \
+> /dev/null 2>&1
+psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE EXTENSION IF NOT EXISTS google_ml_integration" \
+> /dev/null 2>&1
 
 echo "Creating the service account for the GKE deployment."
 
-gcloud iam service-accounts create ${ALLOYDB_USER_GSA_NAME} --display-name=${ALLOYDB_USER_GSA_NAME}
+gcloud iam service-accounts create ${ALLOYDB_USER_GSA_NAME} --display-name=${ALLOYDB_USER_GSA_NAME} \
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Couldn't create a service account"
 	exit 1
 fi
 
-gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:${ALLOYDB_USER_GSA_ID} --role=roles/alloydb.client
-gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:${ALLOYDB_USER_GSA_ID} --role=roles/secretmanager.secretAccessor
+gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:${ALLOYDB_USER_GSA_ID} --role=roles/alloydb.client \
+> /dev/null 2>&1
+gcloud projects add-iam-policy-binding ${PROJECT_ID} --member=serviceAccount:${ALLOYDB_USER_GSA_ID} --role=roles/secretmanager.secretAccessor \
+> /dev/null 2>&1
 
 gcloud iam service-accounts add-iam-policy-binding ${ALLOYDB_USER_GSA_ID} \
 --member "serviceAccount:${PROJECT_ID}.svc.id.goog[default/${CARTSERVICE_KSA_NAME}]" \
---role roles/iam.workloadIdentityUser
+--role roles/iam.workloadIdentityUser \
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Couldn't grant the needed roles to the service account."
@@ -162,8 +173,10 @@ echo "Customizing the k8s deployment with our AlloyDB pieces."
 # Move into the kustomize directory
 cd ../..
 
-kustomize edit add component components/service-accounts
-kustomize edit add component components/alloydb
+kustomize edit add component components/service-accounts \
+> /dev/null 2>&1
+kustomize edit add component components/alloydb \
+> /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Wasn't able to kustomize the components."
@@ -172,12 +185,12 @@ fi
 
 echo "Customize the manifest to target our AlloyDB instance."
 
-sed -i "s/PROJECT_ID_VAL/${PROJECT_ID}/g" components/alloydb/kustomization.yaml
-sed -i "s/ALLOYDB_PRIMARY_IP_VAL/${ALLOYDB_PRIMARY_IP}/g" components/alloydb/kustomization.yaml
-sed -i "s/ALLOYDB_USER_GSA_ID/${ALLOYDB_USER_GSA_ID}/g" components/alloydb/kustomize.yaml
-sed -i "s/ALLOYDB_DATABASE_NAME_VAL/${ALLOYDB_DATABASE_NAME}/g" components/alloydb/kustomization.yaml
-sed -i "s/ALLOYDB_TABLE_NAME_VAL/${ALLOYDB_TABLE_NAME}/g" components/alloydb/kustomization.yaml
-sed -i "s/ALLOYDB_SECRET_NAME_VAL/${ALLOYDB_SECRET_NAME}/g" components/alloydb/kustomization.yaml
+sed -i "s/PROJECT_ID_VAL/${PROJECT_ID}/g" components/alloydb/kustomization.yaml > /dev/null 2>&1
+sed -i "s/ALLOYDB_PRIMARY_IP_VAL/${ALLOYDB_PRIMARY_IP}/g" components/alloydb/kustomization.yaml > /dev/null 2>&1
+sed -i "s/ALLOYDB_USER_GSA_ID/${ALLOYDB_USER_GSA_ID}/g" components/alloydb/kustomize.yaml > /dev/null 2>&1
+sed -i "s/ALLOYDB_DATABASE_NAME_VAL/${ALLOYDB_DATABASE_NAME}/g" components/alloydb/kustomization.yaml > /dev/null 2>&1
+sed -i "s/ALLOYDB_TABLE_NAME_VAL/${ALLOYDB_TABLE_NAME}/g" components/alloydb/kustomization.yaml > /dev/null 2>&1
+sed -i "s/ALLOYDB_SECRET_NAME_VAL/${ALLOYDB_SECRET_NAME}/g" components/alloydb/kustomization.yaml > /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
 	echo "Wasn't able to customize our kustomization manifest."
@@ -186,6 +199,6 @@ fi
 
 echo "Apply the AlloyDB kustomization over top the Online Boutique deployment."
 
-kubectl apply -k .
+kubectl apply -k . > /dev/null 2>&1
 
 exit 0
