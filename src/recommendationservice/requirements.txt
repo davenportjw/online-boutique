@@ -18,7 +18,7 @@ google-api-core==2.11.0
     # via
     #   -r requirements.in
     #   google-api-python-client
-google-api-python-client==2.79.0
+google-api-python-client==2.80.0
     # via google-cloud-profiler
 google-auth==2.16.1
     # via
@@ -114,7 +114,7 @@ uritemplate==4.1.1
     # via google-api-python-client
 urllib3==1.26.14
     # via requests
-wrapt==1.14.1
+wrapt==1.15.0
     # via
     #   deprecated
     #   opentelemetry-instrumentation
