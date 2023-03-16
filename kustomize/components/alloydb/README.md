@@ -91,6 +91,11 @@ psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE
 psql -h ${ALLOYDB_PRIMARY_IP} -U postgres -d ${ALLOYDB_DATABASE_NAME} -c "CREATE INDEX cartItemsByUserId ON ${ALLOYDB_TABLE_NAME}(userId)"
 ```
 
+## Set up AlloyDB to work with Datastream.
+
+All the instructions on [this page](https://cloud.google.com/datastream/docs/configure-your-source-postgresql-database#alloydbforpostgresql) need to be completed so that Datastream can pull data from AlloyDB into BigQuery for the AI training.
+
+
 _Note: It can take more than 20 minutes for the AlloyDB instances to be created._
 
 ## Grant the `cartservice`'s service account access to the AlloyDB database
