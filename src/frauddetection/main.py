@@ -8,7 +8,7 @@ from google.cloud import bigquery
 
 from helpers import run_bq_query
 from bigquery_queries import create_customer_features_table,\
-                            create_terminal_features_table,\
+                            create_location_features_table,\
                             create_training_data_table,\
                             create_bqml_model
 
@@ -29,8 +29,8 @@ RAW_BQ_LABELS_TABLE_URI = f"{PROJECT_ID}.ds_public.fraud_transactions"
 # Set BigQuery table names
 CUSTOMERS_TABLE_NAME = f"customers_{DATAPROCESSING_END_DATE.replace('-', '')}"
 CUSTOMERS_BQ_TABLE_URI = f"{PROJECT_ID}.tx.{CUSTOMERS_TABLE_NAME}"
-TERMINALS_TABLE_NAME = f"terminals_{DATAPROCESSING_END_DATE.replace('-', '')}"                    
-TERMINALS_BQ_TABLE_URI = f"{PROJECT_ID}.tx.{TERMINALS_TABLE_NAME}"
+LOCATIONS_TABLE_NAME = f"locations_{DATAPROCESSING_END_DATE.replace('-', '')}"                    
+LOCATIONS_BQ_TABLE_URI = f"{PROJECT_ID}.tx.{LOCATIONS_TABLE_NAME}"
 TRAINING_DATA_TABLE_NAME = f"training_{DATAPROCESSING_END_DATE.replace('-', '')}"             
 TRAINING_DATA_BQ_TABLE_URI = f"{PROJECT_ID}.tx.{TRAINING_DATA_TABLE_NAME}"
 
@@ -45,8 +45,8 @@ create_customer_features_table(CUSTOMERS_BQ_TABLE_URI,
                                   DATAPROCESSING_END_DATE,
                                   RAW_BQ_LABELS_TABLE_URI)
 
-# # Create table for terminal features
-create_terminal_features_table(TERMINALS_BQ_TABLE_URI,
+# # Create table for location features
+create_location_features_table(LOCATIONS_BQ_TABLE_URI,
                                   RAW_BQ_TRANSACTION_TABLE_URI,
                                   DATAPROCESSING_START_DATE,
                                   DATAPROCESSING_END_DATE,
@@ -57,7 +57,7 @@ create_training_data_table(TRAINING_DATA_BQ_TABLE_URI,
                                   RAW_BQ_TRANSACTION_TABLE_URI,
                                   RAW_BQ_LABELS_TABLE_URI,
                                   CUSTOMERS_BQ_TABLE_URI,
-                                  TERMINALS_BQ_TABLE_URI,
+                                  LOCATIONS_BQ_TABLE_URI,
                                   DATAPROCESSING_START_DATE,
                                   DATAPROCESSING_END_DATE)
 

@@ -8,7 +8,7 @@ from google.cloud import bigquery
 
 from helpers import run_bq_query
 from bigquery_queries import create_customer_features_table,\
-                            create_terminal_features_table,\
+                            create_location_features_table,\
                             create_training_data_table,\
                             create_bqml_model
 

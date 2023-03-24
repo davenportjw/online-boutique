@@ -60,7 +60,7 @@ def create_customer_features_table(CUSTOMERS_BQ_TABLE_URI,
           AND CURRENT ROW ) AS CUSTOMER_ID_AVG_AMOUNT_14DAY_WINDOW,
       FROM get_raw_table)
 
-    # Create the table with CUSTOMER and TERMINAL features ----------------------------------------------------------------------------
+    # Create the table with CUSTOMER and LOCATION features ----------------------------------------------------------------------------
     SELECT
       tx_id,
       PARSE_TIMESTAMP("%Y-%m-%d %H:%M:%S", FORMAT_TIMESTAMP("%Y-%m-%d %H:%M:%S", TX_TS, "UTC")) AS feature_ts,
@@ -79,13 +79,13 @@ def create_customer_features_table(CUSTOMERS_BQ_TABLE_URI,
     return run_bq_query(query)
 
 
-def create_terminal_features_table(TERMINALS_BQ_TABLE_URI,
+def create_location_features_table(LOCATIONS_BQ_TABLE_URI,
                                   RAW_BQ_TRANSACTION_TABLE_URI,
                                   DATAPROCESSING_START_DATE,
                                   DATAPROCESSING_END_DATE,
                                   RAW_BQ_LABELS_TABLE_URI):
     query = f"""
-    CREATE OR REPLACE TABLE `{TERMINALS_BQ_TABLE_URI}` AS
+    CREATE OR REPLACE TABLE `{LOCATIONS_BQ_TABLE_URI}` AS
     WITH
       -- query to join labels with features -------------------------------------------------------------------------------------------
       get_raw_table AS (
@@ -108,7 +108,7 @@ def create_terminal_features_table(TERMINALS_BQ_TABLE_URI,
         `{RAW_BQ_LABELS_TABLE_URI}` as raw_lb
       ON raw_tx.TX_ID = raw_lb.TX_ID),
 
-      # query to calculate TERMINAL spending behaviour --------------------------------------------------------------------------------
+      # query to calculate LOCATION spending behaviour --------------------------------------------------------------------------------
       get_variables_delay_window AS (
       SELECT
         tx_ts,
@@ -116,13 +116,13 @@ def create_terminal_features_table(TERMINALS_BQ_TABLE_URI,
         customer_id,
         location_id,
 
-        # calc total amount of fraudulent tx and the total number of tx over the delay period per terminal (7 days - delay, expressed in seconds)
+        # calc total amount of fraudulent tx and the total number of tx over the delay period per location (7 days - delay, expressed in seconds)
         SUM(fraudulent) OVER (PARTITION BY location_id ORDER BY UNIX_SECONDS(TX_TS) ASC RANGE BETWEEN 604800 PRECEDING
           AND CURRENT ROW ) AS NB_FRAUD_DELAY,
         COUNT(fraudulent) OVER (PARTITION BY location_id ORDER BY UNIX_SECONDS(TX_TS) ASC RANGE BETWEEN 604800 PRECEDING
           AND CURRENT ROW ) AS NB_TX_DELAY,
 
-        # calc total amount of fraudulent tx and the total number of tx over the delayed window per terminal (window + 7 days - delay, expressed in seconds)
+        # calc total amount of fraudulent tx and the total number of tx over the delayed window per location (window + 7 days - delay, expressed in seconds)
         SUM(fraudulent) OVER (PARTITION BY location_id ORDER BY UNIX_SECONDS(TX_TS) ASC RANGE BETWEEN 691200 PRECEDING
           AND CURRENT ROW ) AS NB_FRAUD_1_DELAY_WINDOW,
         SUM(fraudulent) OVER (PARTITION BY location_id ORDER BY UNIX_SECONDS(TX_TS) ASC RANGE BETWEEN 1209600 PRECEDING
@@ -137,7 +137,7 @@ def create_terminal_features_table(TERMINALS_BQ_TABLE_URI,
           AND CURRENT ROW ) AS NB_TX_14_DELAY_WINDOW,
       FROM get_raw_table),
 
-      # query to calculate TERMINAL risk factors ---------------------------------------------------------------------------------------
+      # query to calculate LOCATION risk factors ---------------------------------------------------------------------------------------
       get_risk_factors AS (
       SELECT
         tx_ts,
@@ -145,41 +145,41 @@ def create_terminal_features_table(TERMINALS_BQ_TABLE_URI,
         customer_id,
         location_id,
         # calculate numerator of risk index
-        NB_FRAUD_1_DELAY_WINDOW - NB_FRAUD_DELAY AS location_id_NB_FRAUD_1DAY_WINDOW,
-        NB_FRAUD_7_DELAY_WINDOW - NB_FRAUD_DELAY AS location_id_NB_FRAUD_7DAY_WINDOW,
-        NB_FRAUD_14_DELAY_WINDOW - NB_FRAUD_DELAY AS location_id_NB_FRAUD_14DAY_WINDOW,
+        NB_FRAUD_1_DELAY_WINDOW - NB_FRAUD_DELAY AS LOCATION_ID_NB_FRAUD_1DAY_WINDOW,
+        NB_FRAUD_7_DELAY_WINDOW - NB_FRAUD_DELAY AS LOCATION_ID_NB_FRAUD_7DAY_WINDOW,
+        NB_FRAUD_14_DELAY_WINDOW - NB_FRAUD_DELAY AS LOCATION_ID_NB_FRAUD_14DAY_WINDOW,
         # calculate denominator of risk index
-        NB_TX_1_DELAY_WINDOW - NB_TX_DELAY AS location_id_NB_TX_1DAY_WINDOW,
-        NB_TX_7_DELAY_WINDOW - NB_TX_DELAY AS location_id_NB_TX_7DAY_WINDOW,
-        NB_TX_14_DELAY_WINDOW - NB_TX_DELAY AS location_id_NB_TX_14DAY_WINDOW,
+        NB_TX_1_DELAY_WINDOW - NB_TX_DELAY AS LOCATION_ID_NB_TX_1DAY_WINDOW,
+        NB_TX_7_DELAY_WINDOW - NB_TX_DELAY AS LOCATION_ID_NB_TX_7DAY_WINDOW,
+        NB_TX_14_DELAY_WINDOW - NB_TX_DELAY AS LOCATION_ID_NB_TX_14DAY_WINDOW,
           FROM
         get_variables_delay_window),
 
-      # query to calculate the TERMINAL risk index -------------------------------------------------------------------------------------
+      # query to calculate the LOCATION risk index -------------------------------------------------------------------------------------
       get_risk_index AS (
         SELECT
         tx_ts,
         tx_id,
         customer_id,
         location_id,
-        location_id_NB_TX_1DAY_WINDOW,
-        location_id_NB_TX_7DAY_WINDOW,
-        location_id_NB_TX_14DAY_WINDOW,
+        LOCATION_ID_NB_TX_1DAY_WINDOW,
+        LOCATION_ID_NB_TX_7DAY_WINDOW,
+        LOCATION_ID_NB_TX_14DAY_WINDOW,
         # calculate the risk index
-        (location_id_NB_FRAUD_1DAY_WINDOW/(location_id_NB_TX_1DAY_WINDOW+0.0001)) AS location_id_RISK_1DAY_WINDOW,
-        (location_id_NB_FRAUD_7DAY_WINDOW/(location_id_NB_TX_7DAY_WINDOW+0.0001)) AS location_id_RISK_7DAY_WINDOW,
-        (location_id_NB_FRAUD_14DAY_WINDOW/(location_id_NB_TX_14DAY_WINDOW+0.0001)) AS location_id_RISK_14DAY_WINDOW
+        (LOCATION_ID_NB_FRAUD_1DAY_WINDOW/(LOCATION_ID_NB_TX_1DAY_WINDOW+0.0001)) AS location_id_RISK_1DAY_WINDOW,
+        (LOCATION_ID_NB_FRAUD_7DAY_WINDOW/(LOCATION_ID_NB_TX_7DAY_WINDOW+0.0001)) AS location_id_RISK_7DAY_WINDOW,
+        (LOCATION_ID_NB_FRAUD_14DAY_WINDOW/(LOCATION_ID_NB_TX_14DAY_WINDOW+0.0001)) AS location_id_RISK_14DAY_WINDOW
         FROM get_risk_factors 
       )
 
-    # Create the table with CUSTOMER and TERMINAL features ----------------------------------------------------------------------------
+    # Create the table with CUSTOMER and LOCATION features ----------------------------------------------------------------------------
     SELECT
       tx_id,
       PARSE_TIMESTAMP("%Y-%m-%d %H:%M:%S", FORMAT_TIMESTAMP("%Y-%m-%d %H:%M:%S", TX_TS, "UTC")) AS feature_ts,
       location_id AS location_id,
-      CAST(location_id_NB_TX_1DAY_WINDOW AS INT64) AS location_id_nb_tx_1day_window,
-      CAST(location_id_NB_TX_7DAY_WINDOW AS INT64) AS location_id_nb_tx_7day_window,
-      CAST(location_id_NB_TX_14DAY_WINDOW AS INT64) AS location_id_nb_tx_14day_window,
+      CAST(LOCATION_ID_NB_TX_1DAY_WINDOW AS INT64) AS location_id_nb_tx_1day_window,
+      CAST(LOCATION_ID_NB_TX_7DAY_WINDOW AS INT64) AS location_id_nb_tx_7day_window,
+      CAST(LOCATION_ID_NB_TX_14DAY_WINDOW AS INT64) AS location_id_nb_tx_14day_window,
       CAST(location_id_RISK_1DAY_WINDOW AS FLOAT64) AS location_id_risk_1day_window,
       CAST(location_id_RISK_7DAY_WINDOW AS FLOAT64) AS location_id_risk_7day_window,
       CAST(location_id_RISK_14DAY_WINDOW AS FLOAT64) AS location_id_risk_14day_window,
@@ -194,7 +194,7 @@ def create_training_data_table(TRAINING_DATA_BQ_TABLE_URI,
                                   RAW_BQ_TRANSACTION_TABLE_URI,
                                   RAW_BQ_LABELS_TABLE_URI,
                                   CUSTOMERS_BQ_TABLE_URI,
-                                  TERMINALS_BQ_TABLE_URI,
+                                  LOCATIONS_BQ_TABLE_URI,
                                   DATAPROCESSING_START_DATE,
                                   DATAPROCESSING_END_DATE):
     query = f"""
@@ -207,7 +207,7 @@ def create_training_data_table(TRAINING_DATA_BQ_TABLE_URI,
             raw_tx.tx_amount,
             IF(raw_lb.fraudulent, 1, 0) fraudulent,        
             customer_features.* EXCEPT(feature_ts, tx_id, customer_id),
-            terminal_features.* EXCEPT(feature_ts, tx_id, location_id)
+            location_features.* EXCEPT(feature_ts, tx_id, location_id)
         FROM 
             `{RAW_BQ_TRANSACTION_TABLE_URI}` as raw_tx
         LEFT JOIN 
@@ -217,8 +217,8 @@ def create_training_data_table(TRAINING_DATA_BQ_TABLE_URI,
             `{CUSTOMERS_BQ_TABLE_URI}` as customer_features
         ON raw_tx.TX_ID = customer_features.TX_ID
         LEFT JOIN
-            `{TERMINALS_BQ_TABLE_URI}` as terminal_features
-        ON raw_tx.TX_ID = terminal_features.TX_ID
+            `{LOCATIONS_BQ_TABLE_URI}` as location_features
+        ON raw_tx.TX_ID = location_features.TX_ID
         WHERE
             DATE(raw_tx.TX_TS) BETWEEN DATE_SUB("{DATAPROCESSING_START_DATE}", INTERVAL 15 DAY) AND "{DATAPROCESSING_END_DATE}"
     );
