@@ -15,17 +15,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: emailservice
+  name: email-service
   labels:
-    app: emailservice
+    app: email-service
 spec:
   selector:
     matchLabels:
-      app: emailservice
+      app: email-service
   template:
     metadata:
       labels:
-        app: emailservice
+        app: email-service
     spec:
       serviceAccountName: emailservice
       terminationGracePeriodSeconds: 5
@@ -43,22 +43,20 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: emailservice
+        image: email-service
         ports:
-        - containerPort: 8080
+        - containerPort: 3006
         env:
         - name: PORT
-          value: "8080"
-        - name: DISABLE_PROFILER
-          value: "1"
+          value: "3006"
         readinessProbe:
           periodSeconds: 5
-          grpc:
-            port: 8080
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:3006"]
         livenessProbe:
           periodSeconds: 5
-          grpc:
-            port: 8080
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:3006"]
         resources:
           requests:
             cpu: 100m
@@ -70,17 +68,17 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: emailservice
+  name: email-service
   labels:
-    app: emailservice
+    app: email-service
 spec:
   type: ClusterIP
   selector:
-    app: emailservice
+    app: email-service
   ports:
-  - name: grpc
-    port: 5000
-    targetPort: 8080
+  - name: http
+    port: 80
+    targetPort: 3006
 ---
 apiVersion: v1
 kind: ServiceAccount

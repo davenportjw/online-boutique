@@ -15,17 +15,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: currencyservice
+  name: currency-service
   labels:
-    app: currencyservice
+    app: currency-service
 spec:
   selector:
     matchLabels:
-      app: currencyservice
+      app: currency-service
   template:
     metadata:
       labels:
-        app: currencyservice
+        app: currency-service
     spec:
       serviceAccountName: currencyservice
       terminationGracePeriodSeconds: 5
@@ -43,21 +43,21 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: currencyservice
+        image: currency-service
         ports:
-        - name: grpc
-          containerPort: 7000
+        - name: http
+          containerPort: 3000
         env:
         - name: PORT
-          value: "7000"
-        - name: DISABLE_PROFILER
-          value: "1"
+          value: "3000"
         readinessProbe:
-          grpc:
-            port: 7000
+          httpGet:
+            path: /currencies
+            port: 3000
         livenessProbe:
-          grpc:
-            port: 7000
+          httpGet:
+            path: /currencies
+            port: 3000
         resources:
           requests:
             cpu: 100m
@@ -69,17 +69,17 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: currencyservice
+  name: currency-service
   labels:
-    app: currencyservice
+    app: currency-service
 spec:
   type: ClusterIP
   selector:
-    app: currencyservice
+    app: currency-service
   ports:
-  - name: grpc
-    port: 7000
-    targetPort: 7000
+  - name: http
+    port: 80
+    targetPort: 3000
 ---
 apiVersion: v1
 kind: ServiceAccount

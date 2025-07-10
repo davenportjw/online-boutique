@@ -1,0 +1,12 @@
+{
+  "name": "online-boutique",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "start": "pnpm -r start"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "pnpm": "^8.0.0"
+  }
+}

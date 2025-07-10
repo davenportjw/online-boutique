@@ -23,30 +23,30 @@ build:
   # must provide a "default repo" using one of the methods described
   # here:
   # https://skaffold.dev/docs/concepts/#image-repository-handling
-  - image: emailservice
-    context: src/emailservice
-  - image: productcatalogservice
-    context: src/productcatalogservice
-  - image: recommendationservice
-    context: src/recommendationservice
-  - image: shoppingassistantservice
-    context: src/shoppingassistantservice
-  - image: shippingservice
-    context: src/shippingservice
-  - image: checkoutservice
-    context: src/checkoutservice
-  - image: paymentservice
-    context: src/paymentservice
-  - image: currencyservice
-    context: src/currencyservice
-  - image: cartservice
-    context: src/cartservice/src
+  - image: email-service
+    context: src/email-service
+  - image: product-catalog-service
+    context: src/product-catalog-service
+  - image: recommendation-service
+    context: src/recommendation-service
+  - image: shopping-assistant-service
+    context: src/shopping-assistant-service
+  - image: shipping-service
+    context: src/shipping-service
+  - image: checkout-service
+    context: src/checkout-service
+  - image: payment-service
+    context: src/payment-service
+  - image: currency-service
+    context: src/currency-service
+  - image: cart-service
+    context: src/cart-service
     docker:
       dockerfile: Dockerfile
   - image: frontend
     context: src/frontend
-  - image: adservice
-    context: src/adservice
+  - image: ad-service
+    context: src/ad-service
   tagPolicy:
     gitCommit: {}
   local:
@@ -104,7 +104,7 @@ build:
   platforms: ["linux/amd64", "linux/arm64"]
   artifacts:
   - image: loadgenerator
-    context: src/loadgenerator
+    context: src/load-generator
   local:
     useDockerCLI: true
     useBuildkit: true
