@@ -1,0 +1,58 @@
+openapi: 3.0.0
+info:
+  title: Currency Service
+  description: A service to convert currencies and list supported currencies.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /currencies:
+    get:
+      summary: Get supported currencies
+      description: Returns a list of supported currency codes.
+      responses:
+        '200':
+          description: A list of supported currency codes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /convert:
+    post:
+      summary: Convert currency
+      description: Converts an amount from one currency to another.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversionRequest'
+      responses:
+        '200':
+          description: The converted amount.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Money'
+components:
+  schemas:
+    Money:
+      type: object
+      properties:
+        currencyCode:
+          type: string
+        units:
+          type: integer
+          format: int64
+        nanos:
+          type: integer
+          format: int32
+    ConversionRequest:
+      type: object
+      properties:
+        from:
+          $ref: '#/components/schemas/Money'
+        toCode:
+          type: string

@@ -43,21 +43,21 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: currencyservice
+        image: currency-service
         ports:
-        - name: grpc
-          containerPort: 7000
+        - name: http
+          containerPort: 8080
         env:
         - name: PORT
-          value: "7000"
-        - name: DISABLE_PROFILER
-          value: "1"
+          value: "8080"
         readinessProbe:
-          grpc:
-            port: 7000
+          httpGet:
+            path: /currencies
+            port: 8080
         livenessProbe:
-          grpc:
-            port: 7000
+          httpGet:
+            path: /currencies
+            port: 8080
         resources:
           requests:
             cpu: 100m
@@ -77,9 +77,9 @@ spec:
   selector:
     app: currencyservice
   ports:
-  - name: grpc
-    port: 7000
-    targetPort: 7000
+  - name: http
+    port: 8080
+    targetPort: 8080
 ---
 apiVersion: v1
 kind: ServiceAccount
