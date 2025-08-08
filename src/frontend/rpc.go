@@ -17,6 +17,10 @@ package main
 import (
 	"context"
 	"time"
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
 
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto"
 
@@ -28,30 +32,71 @@ const (
 )
 
 func (fe *frontendServer) getCurrencies(ctx context.Context) ([]string, error) {
-	currs, err := pb.NewCurrencyServiceClient(fe.currencySvcConn).
-		GetSupportedCurrencies(ctx, &pb.Empty{})
+	url := fmt.Sprintf("http://%s/currencies", fe.currencySvcAddr)
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	var out []string
-	for _, c := range currs.CurrencyCodes {
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get currencies: %s", resp.Status)
+	}
+
+	var out struct {
+		CurrencyCodes []string `json:"currency_codes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for _, c := range out.CurrencyCodes {
 		if _, ok := whitelistedCurrencies[c]; ok {
-			out = append(out, c)
+			result = append(result, c)
 		}
 	}
-	return out, nil
+	return result, nil
 }
 
 func (fe *frontendServer) getProducts(ctx context.Context) ([]*pb.Product, error) {
-	resp, err := pb.NewProductCatalogServiceClient(fe.productCatalogSvcConn).
-		ListProducts(ctx, &pb.Empty{})
-	return resp.GetProducts(), err
+	url := fmt.Sprintf("http://%s/products", fe.productCatalogSvcAddr)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get products: %s", resp.Status)
+	}
+
+	var out struct {
+		Products []*pb.Product `json:"products"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out.Products, nil
 }
 
 func (fe *frontendServer) getProduct(ctx context.Context, id string) (*pb.Product, error) {
-	resp, err := pb.NewProductCatalogServiceClient(fe.productCatalogSvcConn).
-		GetProduct(ctx, &pb.GetProductRequest{Id: id})
-	return resp, err
+	url := fmt.Sprintf("http://%s/products/%s", fe.productCatalogSvcAddr, id)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get product: %s", resp.Status)
+	}
+
+	var out pb.Product
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (fe *frontendServer) getCart(ctx context.Context, userID string) ([]*pb.CartItem, error) {
@@ -78,10 +123,32 @@ func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, 
 	if avoidNoopCurrencyConversionRPC && money.GetCurrencyCode() == currency {
 		return money, nil
 	}
-	return pb.NewCurrencyServiceClient(fe.currencySvcConn).
-		Convert(ctx, &pb.CurrencyConversionRequest{
-			From:   money,
-			ToCode: currency})
+
+	url := fmt.Sprintf("http://%s/convert", fe.currencySvcAddr)
+	reqBody := map[string]interface{}{
+		"from":    money,
+		"to_code": currency,
+	}
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to convert currency: %s", resp.Status)
+	}
+
+	var out pb.Money
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string) (*pb.Money, error) {
@@ -97,13 +164,34 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 }
 
 func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string) ([]*pb.Product, error) {
-	resp, err := pb.NewRecommendationServiceClient(fe.recommendationSvcConn).ListRecommendations(ctx,
-		&pb.ListRecommendationsRequest{UserId: userID, ProductIds: productIDs})
-	if err != nil {
-		return nil, err
+	url := fmt.Sprintf("http://%s/recommendations", fe.recommendationSvcAddr)
+	reqBody := map[string]interface{}{
+		"user_id":     userID,
+		"product_ids": productIDs,
 	}
-	out := make([]*pb.Product, len(resp.GetProductIds()))
-	for i, v := range resp.GetProductIds() {
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal recommendation request: %+v", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recommendations: %+v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get recommendations: %s", resp.Status)
+	}
+
+	var recsResp struct {
+		ProductIDs []string `json:"product_ids"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&recsResp); err != nil {
+		return nil, fmt.Errorf("failed to decode recommendation response: %+v", err)
+	}
+
+	out := make([]*pb.Product, len(recsResp.ProductIDs))
+	for i, v := range recsResp.ProductIDs {
 		p, err := fe.getProduct(ctx, v)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get recommended product info (#%s)", v)
@@ -117,11 +205,29 @@ func (fe *frontendServer) getRecommendations(ctx context.Context, userID string,
 }
 
 func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*pb.Ad, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
+	url := fmt.Sprintf("http://%s/ads", fe.adSvcAddr)
+	reqBody := map[string]interface{}{
+		"context_keys": ctxKeys,
+	}
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ad request: %+v", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ads: %+v", err)
+	}
+	defer resp.Body.Close()
 
-	resp, err := pb.NewAdServiceClient(fe.adSvcConn).GetAds(ctx, &pb.AdRequest{
-		ContextKeys: ctxKeys,
-	})
-	return resp.GetAds(), errors.Wrap(err, "failed to get ads")
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get ads: %s", resp.Status)
+	}
+
+	var adResp struct {
+		Ads []*pb.Ad `json:"ads"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&adResp); err != nil {
+		return nil, fmt.Errorf("failed to decode ad response: %+v", err)
+	}
+	return adResp.Ads, nil
 }

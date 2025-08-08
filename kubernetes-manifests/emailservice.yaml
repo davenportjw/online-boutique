@@ -43,22 +43,13 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: emailservice
+        image: emailservice-ts
         ports:
-        - containerPort: 8080
+        - name: http
+          containerPort: 3002
         env:
         - name: PORT
-          value: "8080"
-        - name: DISABLE_PROFILER
-          value: "1"
-        readinessProbe:
-          periodSeconds: 5
-          grpc:
-            port: 8080
-        livenessProbe:
-          periodSeconds: 5
-          grpc:
-            port: 8080
+          value: "3002"
         resources:
           requests:
             cpu: 100m
@@ -78,9 +69,9 @@ spec:
   selector:
     app: emailservice
   ports:
-  - name: grpc
-    port: 5000
-    targetPort: 8080
+  - name: http
+    port: 3002
+    targetPort: 3002
 ---
 apiVersion: v1
 kind: ServiceAccount

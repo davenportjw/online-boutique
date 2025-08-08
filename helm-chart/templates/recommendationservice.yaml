@@ -69,22 +69,13 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: {{ .Values.images.repository }}/{{ .Values.recommendationService.name }}:{{ .Values.images.tag | default .Chart.AppVersion }}
+        image: {{ .Values.images.repository }}/{{ .Values.recommendationService.name }}-ts:{{ .Values.images.tag | default .Chart.AppVersion }}
         ports:
-        - containerPort: 8080
-        readinessProbe:
-          periodSeconds: 5
-          grpc:
-            port: 8080
-        livenessProbe:
-          periodSeconds: 5
-          grpc:
-            port: 8080
+        - name: http
+          containerPort: 3003
         env:
         - name: PORT
-          value: "8080"
-        - name: PRODUCT_CATALOG_SERVICE_ADDR
-          value: "{{ .Values.productCatalogService.name }}:3550"
+          value: "3003"
         {{- if .Values.opentelemetryCollector.create }}
         - name: COLLECTOR_SERVICE_ADDR
           value: "{{ .Values.opentelemetryCollector.name }}:4317"
@@ -114,9 +105,9 @@ spec:
   selector:
     app: {{ .Values.recommendationService.name }}
   ports:
-  - name: grpc
-    port: 8080
-    targetPort: 8080
+  - name: http
+    port: 3003
+    targetPort: 3003
 {{- if .Values.networkPolicies.create }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -137,7 +128,7 @@ spec:
         matchLabels:
           app: {{ .Values.frontend.name }}
     ports:
-     - port: 8080
+     - port: 3003
        protocol: TCP
   egress:
   - {}
@@ -156,7 +147,6 @@ spec:
   egress:
   - hosts:
     - istio-system/*
-    - ./{{ .Values.productCatalogService.name }}.{{ .Release.Namespace }}.svc.cluster.local
     {{- if .Values.opentelemetryCollector.create }}
     - ./{{ .Values.opentelemetryCollector.name }}.{{ .Release.Namespace }}.svc.cluster.local
     {{- end }}
@@ -184,10 +174,10 @@ spec:
     to:
     - operation:
         paths:
-        - /hipstershop.RecommendationService/ListRecommendations
+        - "/recommendations"
         methods:
         - POST
         ports:
-        - "8080"
+        - "3003"
 {{- end }}
 {{- end }}

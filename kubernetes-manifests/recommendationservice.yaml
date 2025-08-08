@@ -43,24 +43,13 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: recommendationservice
+        image: recommendationservice-ts
         ports:
-        - containerPort: 8080
-        readinessProbe:
-          periodSeconds: 5
-          grpc:
-            port: 8080
-        livenessProbe:
-          periodSeconds: 5
-          grpc:
-            port: 8080
+        - name: http
+          containerPort: 3003
         env:
         - name: PORT
-          value: "8080"
-        - name: PRODUCT_CATALOG_SERVICE_ADDR
-          value: "productcatalogservice:3550"
-        - name: DISABLE_PROFILER
-          value: "1"
+          value: "3003"
         resources:
           requests:
             cpu: 100m
@@ -80,9 +69,9 @@ spec:
   selector:
     app: recommendationservice
   ports:
-  - name: grpc
-    port: 8080
-    targetPort: 8080
+  - name: http
+    port: 3003
+    targetPort: 3003
 ---
 apiVersion: v1
 kind: ServiceAccount

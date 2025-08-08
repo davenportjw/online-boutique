@@ -1,0 +1,73 @@
+openapi: 3.0.0
+info:
+  title: Payment Service
+  description: A service to handle payments.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+paths:
+  /charge:
+    post:
+      summary: Charge a credit card
+      description: Charges the given credit card with the given amount and returns a transaction ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeRequest'
+      responses:
+        '200':
+          description: A successful charge.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChargeResponse'
+        '400':
+          description: Invalid request payload.
+components:
+  schemas:
+    Money:
+      type: object
+      properties:
+        currency_code:
+          type: string
+          description: The 3-letter currency code defined in ISO 4217.
+        units:
+          type: integer
+          format: int64
+          description: The whole units of the amount.
+        nanos:
+          type: integer
+          format: int32
+          description: Number of nano (10^-9) units of the amount.
+    CreditCardInfo:
+      type: object
+      properties:
+        credit_card_number:
+          type: string
+        credit_card_cvv:
+          type: integer
+          format: int32
+        credit_card_expiration_year:
+          type: integer
+          format: int32
+        credit_card_expiration_month:
+          type: integer
+          format: int32
+    ChargeRequest:
+      type: object
+      required:
+        - amount
+        - credit_card
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        credit_card:
+          $ref: '#/components/schemas/CreditCardInfo'
+    ChargeResponse:
+      type: object
+      properties:
+        transaction_id:
+          type: string

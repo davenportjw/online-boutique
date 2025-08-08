@@ -1,0 +1,103 @@
+openapi: 3.0.0
+info:
+  title: Product Catalog Service
+  description: A service to manage the product catalog.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3005
+    description: Local development server
+paths:
+  /products:
+    get:
+      summary: List Products
+      description: Returns a list of all products.
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProductsResponse'
+  /products/{id}:
+    get:
+      summary: Get Product
+      description: Returns a single product by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found.
+  /products/search:
+    get:
+      summary: Search Products
+      description: Returns a list of products that match the search query.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchProductsResponse'
+components:
+  schemas:
+    Money:
+      type: object
+      properties:
+        currency_code:
+          type: string
+          description: The 3-letter currency code defined in ISO 4217.
+        units:
+          type: integer
+          format: int64
+          description: The whole units of the amount.
+        nanos:
+          type: integer
+          format: int32
+          description: Number of nano (10^-9) units of the amount.
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        picture:
+          type: string
+        price_usd:
+          $ref: '#/components/schemas/Money'
+        categories:
+          type: array
+          items:
+            type: string
+    ListProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    SearchProductsResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'

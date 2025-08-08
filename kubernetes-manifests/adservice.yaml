@@ -43,12 +43,13 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: adservice
+        image: adservice-ts
         ports:
-        - containerPort: 9555
+        - name: http
+          containerPort: 3004
         env:
         - name: PORT
-          value: "9555"
+          value: "3004"
         resources:
           requests:
             cpu: 200m
@@ -56,16 +57,6 @@ spec:
           limits:
             cpu: 300m
             memory: 300Mi
-        readinessProbe:
-          initialDelaySeconds: 20
-          periodSeconds: 15
-          grpc:
-            port: 9555
-        livenessProbe:
-          initialDelaySeconds: 20
-          periodSeconds: 15
-          grpc:
-            port: 9555
 ---
 apiVersion: v1
 kind: Service
@@ -78,9 +69,9 @@ spec:
   selector:
     app: adservice
   ports:
-  - name: grpc
-    port: 9555
-    targetPort: 9555
+  - name: http
+    port: 3004
+    targetPort: 3004
 ---
 apiVersion: v1
 kind: ServiceAccount

@@ -43,20 +43,13 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: productcatalogservice
+        image: productcatalogservice-ts
         ports:
-        - containerPort: 3550
+        - name: http
+          containerPort: 3005
         env:
         - name: PORT
-          value: "3550"
-        - name: DISABLE_PROFILER
-          value: "1"
-        readinessProbe:
-          grpc:
-            port: 3550
-        livenessProbe:
-          grpc:
-            port: 3550
+          value: "3005"
         resources:
           requests:
             cpu: 100m
@@ -76,9 +69,9 @@ spec:
   selector:
     app: productcatalogservice
   ports:
-  - name: grpc
-    port: 3550
-    targetPort: 3550
+  - name: http
+    port: 3005
+    targetPort: 3005
 ---
 apiVersion: v1
 kind: ServiceAccount

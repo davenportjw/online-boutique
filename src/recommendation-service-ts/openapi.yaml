@@ -1,0 +1,49 @@
+openapi: 3.0.0
+info:
+  title: Recommendation Service
+  description: A service to recommend products.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3003
+    description: Local development server
+paths:
+  /recommendations:
+    post:
+      summary: Get Recommendations
+      description: Returns a list of recommended products.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListRecommendationsRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRecommendationsResponse'
+        '400':
+          description: Invalid request payload.
+components:
+  schemas:
+    ListRecommendationsRequest:
+      type: object
+      required:
+        - user_id
+        - product_ids
+      properties:
+        user_id:
+          type: string
+        product_ids:
+          type: array
+          items:
+            type: string
+    ListRecommendationsResponse:
+      type: object
+      properties:
+        product_ids:
+          type: array
+          items:
+            type: string

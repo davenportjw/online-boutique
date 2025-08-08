@@ -22,6 +22,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/profiler"
+	"bytes"
+	"encoding/json"
+	"net/http"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -74,13 +77,10 @@ type checkoutService struct {
 	currencySvcConn *grpc.ClientConn
 
 	shippingSvcAddr string
-	shippingSvcConn *grpc.ClientConn
 
 	emailSvcAddr string
-	emailSvcConn *grpc.ClientConn
 
 	paymentSvcAddr string
-	paymentSvcConn *grpc.ClientConn
 }
 
 func main() {
@@ -113,12 +113,9 @@ func main() {
 	mustMapEnv(&svc.emailSvcAddr, "EMAIL_SERVICE_ADDR")
 	mustMapEnv(&svc.paymentSvcAddr, "PAYMENT_SERVICE_ADDR")
 
-	mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
 	mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
 	mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
 	mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
-	mustConnGRPC(ctx, &svc.emailSvcConn, svc.emailSvcAddr)
-	mustConnGRPC(ctx, &svc.paymentSvcConn, svc.paymentSvcAddr)
 
 	log.Infof("service config: %+v", svc)
 
@@ -310,14 +307,32 @@ func (cs *checkoutService) prepareOrderItemsAndShippingQuoteFromCart(ctx context
 }
 
 func (cs *checkoutService) quoteShipping(ctx context.Context, address *pb.Address, items []*pb.CartItem) (*pb.Money, error) {
-	shippingQuote, err := pb.NewShippingServiceClient(cs.shippingSvcConn).
-		GetQuote(ctx, &pb.GetQuoteRequest{
-			Address: address,
-			Items:   items})
+	url := fmt.Sprintf("http://%s/getQuote", cs.shippingSvcAddr)
+	reqBody := map[string]interface{}{
+		"address": address,
+		"items":   items,
+	}
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal get quote request: %+v", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shipping quote: %+v", err)
 	}
-	return shippingQuote.GetCostUsd(), nil
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get shipping quote: %s", resp.Status)
+	}
+
+	var quoteResp struct {
+		CostUsd *pb.Money `json:"cost_usd"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&quoteResp); err != nil {
+		return nil, fmt.Errorf("failed to decode get quote response: %+v", err)
+	}
+	return quoteResp.CostUsd, nil
 }
 
 func (cs *checkoutService) getUserCart(ctx context.Context, userID string) ([]*pb.CartItem, error) {
@@ -366,28 +381,81 @@ func (cs *checkoutService) convertCurrency(ctx context.Context, from *pb.Money, 
 }
 
 func (cs *checkoutService) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo) (string, error) {
-	paymentResp, err := pb.NewPaymentServiceClient(cs.paymentSvcConn).Charge(ctx, &pb.ChargeRequest{
-		Amount:     amount,
-		CreditCard: paymentInfo})
-	if err != nil {
-		return "", fmt.Errorf("could not charge the card: %+v", err)
+	url := fmt.Sprintf("http://%s/charge", cs.paymentSvcAddr)
+	reqBody := map[string]interface{}{
+		"amount":      amount,
+		"credit_card": paymentInfo,
 	}
-	return paymentResp.GetTransactionId(), nil
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal charge request: %+v", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return "", fmt.Errorf("failed to charge card: %+v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to charge card: %s", resp.Status)
+	}
+
+	var chargeResp struct {
+		TransactionID string `json:"transaction_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&chargeResp); err != nil {
+		return "", fmt.Errorf("failed to decode charge response: %+v", err)
+	}
+	return chargeResp.TransactionID, nil
 }
 
 func (cs *checkoutService) sendOrderConfirmation(ctx context.Context, email string, order *pb.OrderResult) error {
-	_, err := pb.NewEmailServiceClient(cs.emailSvcConn).SendOrderConfirmation(ctx, &pb.SendOrderConfirmationRequest{
-		Email: email,
-		Order: order})
-	return err
+	url := fmt.Sprintf("http://%s/sendOrderConfirmation", cs.emailSvcAddr)
+	reqBody := map[string]interface{}{
+		"email": email,
+		"order": order,
+	}
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal send order confirmation request: %+v", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return fmt.Errorf("failed to send order confirmation: %+v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send order confirmation: %s", resp.Status)
+	}
+	return nil
 }
 
 func (cs *checkoutService) shipOrder(ctx context.Context, address *pb.Address, items []*pb.CartItem) (string, error) {
-	resp, err := pb.NewShippingServiceClient(cs.shippingSvcConn).ShipOrder(ctx, &pb.ShipOrderRequest{
-		Address: address,
-		Items:   items})
-	if err != nil {
-		return "", fmt.Errorf("shipment failed: %+v", err)
+	url := fmt.Sprintf("http://%s/shipOrder", cs.shippingSvcAddr)
+	reqBody := map[string]interface{}{
+		"address": address,
+		"items":   items,
 	}
-	return resp.GetTrackingId(), nil
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal ship order request: %+v", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return "", fmt.Errorf("failed to ship order: %+v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to ship order: %s", resp.Status)
+	}
+
+	var shipResp struct {
+		TrackingID string `json:"tracking_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&shipResp); err != nil {
+		return "", fmt.Errorf("failed to decode ship order response: %+v", err)
+	}
+	return shipResp.TrackingID, nil
 }

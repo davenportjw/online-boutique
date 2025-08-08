@@ -1,0 +1,94 @@
+openapi: 3.0.0
+info:
+  title: Email Service
+  description: A service to send emails.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3002
+    description: Local development server
+paths:
+  /sendOrderConfirmation:
+    post:
+      summary: Send Order Confirmation
+      description: Sends an order confirmation email to the user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOrderConfirmationRequest'
+      responses:
+        '200':
+          description: A successful response.
+        '400':
+          description: Invalid request payload.
+components:
+  schemas:
+    Money:
+      type: object
+      properties:
+        currency_code:
+          type: string
+          description: The 3-letter currency code defined in ISO 4217.
+        units:
+          type: integer
+          format: int64
+          description: The whole units of the amount.
+        nanos:
+          type: integer
+          format: int32
+          description: Number of nano (10^-9) units of the amount.
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+    OrderItem:
+      type: object
+      properties:
+        item:
+          $ref: '#/components/schemas/CartItem'
+        cost:
+          $ref: '#/components/schemas/Money'
+    Address:
+      type: object
+      properties:
+        street_address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        zip_code:
+          type: integer
+          format: int32
+    OrderResult:
+      type: object
+      properties:
+        order_id:
+          type: string
+        shipping_tracking_id:
+          type: string
+        shipping_cost:
+          $ref: '#/components/schemas/Money'
+        shipping_address:
+          $ref: '#/components/schemas/Address'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+    SendOrderConfirmationRequest:
+      type: object
+      required:
+        - email
+        - order
+      properties:
+        email:
+          type: string
+        order:
+          $ref: '#/components/schemas/OrderResult'

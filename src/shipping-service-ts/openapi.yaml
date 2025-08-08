@@ -1,0 +1,113 @@
+openapi: 3.0.0
+info:
+  title: Shipping Service
+  description: A service to manage shipping.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3006
+    description: Local development server
+paths:
+  /getQuote:
+    post:
+      summary: Get Quote
+      description: Returns a shipping quote.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetQuoteRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetQuoteResponse'
+        '400':
+          description: Invalid request payload.
+  /shipOrder:
+    post:
+      summary: Ship Order
+      description: Ships an order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipOrderRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipOrderResponse'
+        '400':
+          description: Invalid request payload.
+components:
+  schemas:
+    Money:
+      type: object
+      properties:
+        currency_code:
+          type: string
+          description: The 3-letter currency code defined in ISO 4217.
+        units:
+          type: integer
+          format: int64
+          description: The whole units of the amount.
+        nanos:
+          type: integer
+          format: int32
+          description: Number of nano (10^-9) units of the amount.
+    Address:
+      type: object
+      properties:
+        street_address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        zip_code:
+          type: integer
+          format: int32
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+    GetQuoteRequest:
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/Address'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+    GetQuoteResponse:
+      type: object
+      properties:
+        cost_usd:
+          $ref: '#/components/schemas/Money'
+    ShipOrderRequest:
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/Address'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+    ShipOrderResponse:
+      type: object
+      properties:
+        tracking_id:
+          type: string

@@ -61,16 +61,13 @@ type ctxKeySessionID struct{}
 
 type frontendServer struct {
 	productCatalogSvcAddr string
-	productCatalogSvcConn *grpc.ClientConn
 
 	currencySvcAddr string
-	currencySvcConn *grpc.ClientConn
 
 	cartSvcAddr string
 	cartSvcConn *grpc.ClientConn
 
 	recommendationSvcAddr string
-	recommendationSvcConn *grpc.ClientConn
 
 	checkoutSvcAddr string
 	checkoutSvcConn *grpc.ClientConn
@@ -79,7 +76,6 @@ type frontendServer struct {
 	shippingSvcConn *grpc.ClientConn
 
 	adSvcAddr string
-	adSvcConn *grpc.ClientConn
 
 	collectorAddr string
 	collectorConn *grpc.ClientConn
@@ -137,13 +133,9 @@ func main() {
 	mustMapEnv(&svc.adSvcAddr, "AD_SERVICE_ADDR")
 	mustMapEnv(&svc.shoppingAssistantSvcAddr, "SHOPPING_ASSISTANT_SERVICE_ADDR")
 
-	mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
-	mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
 	mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
-	mustConnGRPC(ctx, &svc.recommendationSvcConn, svc.recommendationSvcAddr)
 	mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
 	mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
-	mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
 
 	r := mux.NewRouter()
 	r.HandleFunc(baseUrl + "/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)

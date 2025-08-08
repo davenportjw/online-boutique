@@ -1,0 +1,53 @@
+openapi: 3.0.0
+info:
+  title: Ad Service
+  description: A service to provide advertisements.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3004
+    description: Local development server
+paths:
+  /ads:
+    post:
+      summary: Get Ads
+      description: Returns a list of ads.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdRequest'
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResponse'
+        '400':
+          description: Invalid request payload.
+components:
+  schemas:
+    AdRequest:
+      type: object
+      required:
+        - context_keys
+      properties:
+        context_keys:
+          type: array
+          items:
+            type: string
+    Ad:
+      type: object
+      properties:
+        redirect_url:
+          type: string
+        text:
+          type: string
+    AdResponse:
+      type: object
+      properties:
+        ads:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ad'

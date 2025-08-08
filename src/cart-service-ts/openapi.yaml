@@ -1,0 +1,79 @@
+openapi: 3.0.0
+info:
+  title: Cart Service
+  description: A service to manage shopping carts.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3007
+    description: Local development server
+paths:
+  /cart:
+    post:
+      summary: Add Item to Cart
+      description: Adds an item to the user's shopping cart.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddItemRequest'
+      responses:
+        '200':
+          description: A successful response.
+        '400':
+          description: Invalid request payload.
+  /cart/{userId}:
+    get:
+      summary: Get Cart
+      description: Returns the user's shopping cart.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+    delete:
+      summary: Empty Cart
+      description: Empties the user's shopping cart.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A successful response.
+components:
+  schemas:
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+    AddItemRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+        item:
+          $ref: '#/components/schemas/CartItem'
+    Cart:
+      type: object
+      properties:
+        user_id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
